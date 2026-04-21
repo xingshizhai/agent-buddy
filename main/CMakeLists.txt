@@ -1,0 +1,29 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "app_lcd.c"
+        "app_audio.c"
+        "app_wifi.c"
+        "ui/ui_main_screen.c"
+        "ui/ui_chat_screen.c"
+        "ui/ui_debug_screen.c"
+        "ui/ui_debug_audio.c"
+        "ui/ui_debug_wifi.c"
+        "ui/ui_debug_bt.c"
+    INCLUDE_DIRS
+        "."
+        "ui"
+    REQUIRES
+        esp_wifi
+        nvs_flash
+        esp_event
+        esp_netif
+        driver
+        esp_driver_i2c
+        esp_driver_i2s
+        esp_lcd
+        esp_timer
+        freertos
+        log
+        esp_hw_support
+)

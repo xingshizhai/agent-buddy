@@ -1,0 +1,15 @@
+dependencies:
+  idf: ">=6.0"
+
+  # LVGL + LCD port (pulls in lvgl ~9.2 automatically)
+  espressif/esp_lvgl_port:
+    version: "^2.4.0"
+
+  # Touch driver for GT1151 (the touch IC on SUB3)
+  espressif/esp_lcd_touch_gt1151:
+    version: "^1.0.0"
+
+  # Audio codec (ES8311 speaker + ES7210 mic)
+  espressif/esp_codec_dev:
+    version: "~1.5.0"
+
