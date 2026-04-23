@@ -7,7 +7,9 @@
 #include "app_lcd.h"
 #include "app_audio.h"
 #include "app_wifi.h"
+#include "app_ai.h"
 #include "esp_lvgl_port.h"
+#include "lvgl.h"
 #include "ui.h"
 #include "ui_main_screen.h"
 #include "ui_chat_screen.h"
@@ -31,8 +33,17 @@ void ui_navigate_to(ui_screen_id_t screen)
 void ui_update_wifi_status(bool connected)
 {
     g_ui_state.wifi_connected = connected;
+    lvgl_port_lock(0);
     ui_main_screen_set_wifi(connected);
     ui_main_screen_set_status(connected ? "Ready" : "No network");
+    lvgl_port_unlock();
+}
+
+static void ai_init_task(void *arg)
+{
+    (void)arg;
+    app_ai_init();
+    vTaskDelete(NULL);
 }
 
 static void on_wifi_status(app_wifi_status_t status, void *ctx)
@@ -42,13 +53,17 @@ static void on_wifi_status(app_wifi_status_t status, void *ctx)
     case WIFI_STATUS_CONNECTED:
         ESP_LOGI(TAG, "WiFi connected");
         ui_update_wifi_status(true);
+        // Defer app_ai_init out of the WiFi event task to avoid starving IDLE
+        xTaskCreate(ai_init_task, "ai_init", 4096, NULL, 3, NULL);
         break;
     case WIFI_STATUS_DISCONNECTED:
         ESP_LOGW(TAG, "WiFi disconnected");
         ui_update_wifi_status(false);
         break;
     case WIFI_STATUS_CONNECTING:
+        lvgl_port_lock(0);
         ui_main_screen_set_status("Connecting to WiFi...");
+        lvgl_port_unlock();
         break;
     default:
         break;

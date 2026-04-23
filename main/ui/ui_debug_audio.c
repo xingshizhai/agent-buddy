@@ -25,6 +25,7 @@ static lv_obj_t    *s_time_lbl     = NULL;
 static lv_obj_t    *s_rec_btn      = NULL;
 static lv_obj_t    *s_rec_btn_lbl  = NULL;
 static lv_obj_t    *s_level_bar    = NULL;
+static lv_obj_t    *s_vol_lbl      = NULL;
 static lv_timer_t  *s_tick_timer   = NULL;
 
 static int16_t     *s_rec_buf       = NULL;
@@ -288,6 +289,28 @@ static void on_play_btn(lv_event_t *e)
     xTaskCreate(play_task, "play", 4096, NULL, 5, NULL);
 }
 
+static void update_vol_label(void)
+{
+    if (!s_vol_lbl) return;
+    char buf[16];
+    snprintf(buf, sizeof(buf), LV_SYMBOL_VOLUME_MAX " %d%%", app_audio_get_volume());
+    lv_label_set_text(s_vol_lbl, buf);
+}
+
+static void on_vol_down(lv_event_t *e)
+{
+    (void)e;
+    app_audio_set_volume(app_audio_get_volume() - 5);
+    update_vol_label();
+}
+
+static void on_vol_up(lv_event_t *e)
+{
+    (void)e;
+    app_audio_set_volume(app_audio_get_volume() + 5);
+    update_vol_label();
+}
+
 static void on_tone_btn(lv_event_t *e)
 {
     (void)e;
@@ -397,6 +420,34 @@ lv_obj_t *ui_debug_audio_screen_create(void)
     lv_obj_set_style_text_color(tone_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_center(tone_lbl);
 
+    // Volume control row: [Vol-]  Vol: 75%  [Vol+]
+    lv_obj_t *vdown = lv_button_create(scr);
+    lv_obj_set_size(vdown, 80, 44);
+    lv_obj_align(vdown, LV_ALIGN_CENTER, -130, 128);
+    lv_obj_set_style_bg_color(vdown, lv_color_hex(0x16213E), LV_PART_MAIN);
+    lv_obj_set_style_radius(vdown, 8, LV_PART_MAIN);
+    lv_obj_add_event_cb(vdown, on_vol_down, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *vd_lbl = lv_label_create(vdown);
+    lv_label_set_text(vd_lbl, LV_SYMBOL_MINUS " Vol");
+    lv_obj_set_style_text_color(vd_lbl, lv_color_white(), LV_PART_MAIN);
+    lv_obj_center(vd_lbl);
+
+    s_vol_lbl = lv_label_create(scr);
+    lv_obj_set_style_text_color(s_vol_lbl, lv_color_hex(0xB0BEC5), LV_PART_MAIN);
+    lv_obj_align(s_vol_lbl, LV_ALIGN_CENTER, 0, 128);
+    update_vol_label();
+
+    lv_obj_t *vup = lv_button_create(scr);
+    lv_obj_set_size(vup, 80, 44);
+    lv_obj_align(vup, LV_ALIGN_CENTER, 130, 128);
+    lv_obj_set_style_bg_color(vup, lv_color_hex(0x16213E), LV_PART_MAIN);
+    lv_obj_set_style_radius(vup, 8, LV_PART_MAIN);
+    lv_obj_add_event_cb(vup, on_vol_up, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *vu_lbl = lv_label_create(vup);
+    lv_label_set_text(vu_lbl, LV_SYMBOL_PLUS " Vol");
+    lv_obj_set_style_text_color(vu_lbl, lv_color_white(), LV_PART_MAIN);
+    lv_obj_center(vu_lbl);
+
     // Hint
     lv_obj_t *hint = lv_label_create(scr);
     lv_label_set_text(hint, "Record → Play to test mic/speaker. 440Hz plays a reference tone.");
@@ -404,7 +455,7 @@ lv_obj_t *ui_debug_audio_screen_create(void)
     lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(hint, 620);
     lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 150);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
 
     ESP_LOGI(TAG, "Audio debug screen created (mic=%s)",
              app_audio_mic_available() ? "OK" : "N/A");

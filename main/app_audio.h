@@ -24,6 +24,7 @@ esp_err_t app_audio_record_stop(void);
 
 // Volume 0-100
 esp_err_t app_audio_set_volume(int vol);
+int        app_audio_get_volume(void);
 
 // Returns true if the microphone codec (ES7210) was successfully initialized
 bool app_audio_mic_available(void);

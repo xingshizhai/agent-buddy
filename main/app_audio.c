@@ -11,10 +11,12 @@
 
 static const char *TAG = "app_audio";
 
-static i2s_chan_handle_t        s_tx_chan   = NULL;
-static i2s_chan_handle_t        s_rx_chan   = NULL;
-static esp_codec_dev_handle_t   s_spk_dev  = NULL;
-static esp_codec_dev_handle_t   s_mic_dev  = NULL;
+static i2s_chan_handle_t        s_tx_chan          = NULL;
+static i2s_chan_handle_t        s_rx_chan          = NULL;
+static esp_codec_dev_handle_t   s_spk_dev         = NULL;
+static esp_codec_dev_handle_t   s_mic_dev         = NULL;
+static int                      s_volume          = 75;
+static uint32_t                 s_spk_sample_rate = 0;
 
 // ── Custom I²C ctrl for esp_codec_dev using new i2c_master API ───────────────
 // The bundled audio_codec_new_i2c_ctrl() uses legacy I2C driver.
@@ -93,7 +95,7 @@ static const audio_codec_ctrl_if_t *make_i2c_ctrl(i2c_master_bus_handle_t bus,
     return &impl->base;
 }
 
-// ── PA enable via TCA9554 (direct I²C, no esp_io_expander dep) ───────────────
+// ── PA enable via TCA9554 at 0x20 ────────────────────────────────────────────
 // TCA9554 regs: 0x01=output, 0x03=direction (0=output). Pin0 = PA enable.
 static esp_err_t pa_enable(i2c_master_bus_handle_t bus)
 {
@@ -106,14 +108,14 @@ static esp_err_t pa_enable(i2c_master_bus_handle_t bus)
     esp_err_t ret = i2c_master_bus_add_device(bus, &dev_cfg, &dev);
     if (ret != ESP_OK) return ret;
 
-    uint8_t dir_cmd[]  = {0x03, 0xFE};  // pin0 → output
-    uint8_t out_cmd[]  = {0x01, 0x01};  // pin0 → high (PA on)
+    uint8_t dir_cmd[] = {0x03, 0xFE};  // pin0 → output
+    uint8_t out_cmd[] = {0x01, 0x01};  // pin0 → high (PA on)
     ret = i2c_master_transmit(dev, dir_cmd, sizeof(dir_cmd), pdMS_TO_TICKS(50));
-    if (ret != ESP_OK) return ret;
+    if (ret != ESP_OK) { i2c_master_bus_rm_device(dev); return ret; }
     ret = i2c_master_transmit(dev, out_cmd, sizeof(out_cmd), pdMS_TO_TICKS(50));
-    if (ret != ESP_OK) return ret;
-    ESP_LOGI(TAG, "PA enabled via TCA9554");
-    return ESP_OK;
+    i2c_master_bus_rm_device(dev);
+    if (ret == ESP_OK) ESP_LOGI(TAG, "PA enabled");
+    return ret;
 }
 
 // ── I²S init ─────────────────────────────────────────────────────────────────
@@ -123,8 +125,9 @@ static esp_err_t i2s_init(uint32_t sample_rate)
     chan_cfg.auto_clear = true;
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &s_tx_chan, &s_rx_chan));
 
-    i2s_std_config_t std_cfg = {
-        .clk_cfg = {
+    // TX channel: master, drives all clocks + data out
+    i2s_std_config_t tx_cfg = {
+        .clk_cfg  = {
             .sample_rate_hz = sample_rate,
             .clk_src        = I2S_CLK_SRC_DEFAULT,
             .mclk_multiple  = I2S_MCLK_MULTIPLE_256,
@@ -136,12 +139,31 @@ static esp_err_t i2s_init(uint32_t sample_rate)
             .bclk = BSP_I2S_BCLK,
             .ws   = BSP_I2S_WS,
             .dout = BSP_I2S_DOUT,
+            .din  = I2S_GPIO_UNUSED,
+            .invert_flags = {.mclk_inv = false, .bclk_inv = false, .ws_inv = false},
+        },
+    };
+    ESP_ERROR_CHECK(i2s_channel_init_std_mode(s_tx_chan, &tx_cfg));
+
+    // RX channel: reuses TX clocks — set clock GPIOs to UNUSED to avoid conflicts
+    i2s_std_config_t rx_cfg = {
+        .clk_cfg  = {
+            .sample_rate_hz = sample_rate,
+            .clk_src        = I2S_CLK_SRC_DEFAULT,
+            .mclk_multiple  = I2S_MCLK_MULTIPLE_256,
+        },
+        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(
+            I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        .gpio_cfg = {
+            .mclk = I2S_GPIO_UNUSED,
+            .bclk = I2S_GPIO_UNUSED,
+            .ws   = I2S_GPIO_UNUSED,
+            .dout = I2S_GPIO_UNUSED,
             .din  = BSP_I2S_DSIN,
             .invert_flags = {.mclk_inv = false, .bclk_inv = false, .ws_inv = false},
         },
     };
-    ESP_ERROR_CHECK(i2s_channel_init_std_mode(s_tx_chan, &std_cfg));
-    ESP_ERROR_CHECK(i2s_channel_init_std_mode(s_rx_chan, &std_cfg));
+    ESP_ERROR_CHECK(i2s_channel_init_std_mode(s_rx_chan, &rx_cfg));
     return ESP_OK;
 }
 
@@ -151,13 +173,22 @@ esp_err_t app_audio_init(i2c_master_bus_handle_t i2c_bus)
     ESP_ERROR_CHECK(i2s_init(16000));
     ESP_LOGI(TAG, "I2S ready");
 
-    // Shared I²S data interface
-    audio_codec_i2s_cfg_t i2s_cfg = {
+    // Separate TX-only interface for speaker — avoids ESP32-S3 paired-channel
+    // disable-pending logic in the codec library when mic is also active.
+    audio_codec_i2s_cfg_t tx_i2s_cfg = {
         .port       = BSP_I2S_NUM,
         .tx_handle  = s_tx_chan,
+        .rx_handle  = NULL,
+    };
+    const audio_codec_data_if_t *tx_i2s_if = audio_codec_new_i2s_data(&tx_i2s_cfg);
+
+    // Separate RX-only interface for mic
+    audio_codec_i2s_cfg_t rx_i2s_cfg = {
+        .port       = BSP_I2S_NUM,
+        .tx_handle  = NULL,
         .rx_handle  = s_rx_chan,
     };
-    const audio_codec_data_if_t *i2s_if = audio_codec_new_i2s_data(&i2s_cfg);
+    const audio_codec_data_if_t *rx_i2s_if = audio_codec_new_i2s_data(&rx_i2s_cfg);
 
     // ES8311 speaker
     const audio_codec_ctrl_if_t *es8311_ctrl = make_i2c_ctrl(i2c_bus, BSP_ES8311_ADDR);
@@ -175,11 +206,24 @@ esp_err_t app_audio_init(i2c_master_bus_handle_t i2c_bus)
     esp_codec_dev_cfg_t spk_cfg = {
         .dev_type  = ESP_CODEC_DEV_TYPE_OUT,
         .codec_if  = es8311_if,
-        .data_if   = i2s_if,
+        .data_if   = tx_i2s_if,
     };
     s_spk_dev = esp_codec_dev_new(&spk_cfg);
-    ESP_ERROR_CHECK(esp_codec_dev_set_out_vol(s_spk_dev, 75));
-    ESP_LOGI(TAG, "ES8311 speaker ready");
+    // Open once at 16 kHz and keep open — avoid repeated close/open cycles that
+    // interact poorly with the codec library's paired-channel enable-state machine.
+    {
+        esp_codec_dev_sample_info_t fs = {
+            .bits_per_sample = 16, .channel = 2, .sample_rate = 16000,
+        };
+        esp_err_t r = esp_codec_dev_open(s_spk_dev, &fs);
+        if (r == ESP_OK) {
+            s_spk_sample_rate = 16000;
+            ESP_LOGI(TAG, "ES8311 speaker ready (opened at 16 kHz)");
+        } else {
+            ESP_LOGW(TAG, "ES8311 open at init failed (0x%x); will retry on play", r);
+        }
+    }
+    esp_codec_dev_set_out_vol(s_spk_dev, 75);
 
     // ES7210 mic ADC
     const audio_codec_ctrl_if_t *es7210_ctrl = make_i2c_ctrl(i2c_bus, BSP_ES7210_ADDR);
@@ -190,7 +234,7 @@ esp_err_t app_audio_init(i2c_master_bus_handle_t i2c_bus)
     esp_codec_dev_cfg_t mic_cfg = {
         .dev_type  = ESP_CODEC_DEV_TYPE_IN,
         .codec_if  = es7210_if,
-        .data_if   = i2s_if,
+        .data_if   = rx_i2s_if,
     };
     s_mic_dev = esp_codec_dev_new(&mic_cfg);
     esp_err_t mic_ret = esp_codec_dev_set_in_gain(s_mic_dev, 30.0f);
@@ -210,21 +254,24 @@ esp_err_t app_audio_init(i2c_master_bus_handle_t i2c_bus)
 
 esp_err_t app_audio_play_start(uint32_t sample_rate)
 {
-    esp_err_t r;
-    r = esp_codec_dev_close(s_spk_dev);
-    ESP_LOGI(TAG, "spk close: 0x%x", r);
-    esp_codec_dev_sample_info_t fs = {
-        .bits_per_sample = 16,
-        .channel         = 2,
-        .sample_rate     = sample_rate,
-    };
-    r = esp_codec_dev_open(s_spk_dev, &fs);
-    ESP_LOGI(TAG, "spk open(%lu Hz): 0x%x", sample_rate, r);
-    if (r == ESP_OK) {
-        r = esp_codec_dev_set_out_vol(s_spk_dev, 80);
-        ESP_LOGI(TAG, "spk vol: 0x%x", r);
+    if (s_spk_sample_rate != sample_rate) {
+        // Sample rate changed — must close and reopen to reconfigure ES8311 + I2S.
+        esp_codec_dev_close(s_spk_dev);
+        s_spk_sample_rate = 0;
+        esp_codec_dev_sample_info_t fs = {
+            .bits_per_sample = 16,
+            .channel         = 2,
+            .sample_rate     = sample_rate,
+        };
+        esp_err_t r = esp_codec_dev_open(s_spk_dev, &fs);
+        if (r != ESP_OK) {
+            ESP_LOGE(TAG, "spk reopen(%lu Hz) failed: 0x%x", sample_rate, r);
+            return r;
+        }
+        s_spk_sample_rate = sample_rate;
     }
-    return r;
+    esp_codec_dev_set_out_vol(s_spk_dev, s_volume);
+    return ESP_OK;
 }
 
 esp_err_t app_audio_play_write(const int16_t *data, size_t samples)
@@ -237,7 +284,9 @@ esp_err_t app_audio_play_write(const int16_t *data, size_t samples)
 
 esp_err_t app_audio_play_stop(void)
 {
-    return esp_codec_dev_close(s_spk_dev);
+    // Keep the device open — ES8311 and I2S TX stay configured.
+    // With auto_clear=true on the I2S channel, DMA drains to silence automatically.
+    return ESP_OK;
 }
 
 esp_err_t app_audio_play(const int16_t *data, size_t samples, uint32_t sample_rate)
@@ -277,7 +326,15 @@ esp_err_t app_audio_record_stop(void)
 
 esp_err_t app_audio_set_volume(int vol)
 {
-    return esp_codec_dev_set_out_vol(s_spk_dev, vol);
+    if (vol < 0)   vol = 0;
+    if (vol > 100) vol = 100;
+    s_volume = vol;
+    return esp_codec_dev_set_out_vol(s_spk_dev, s_volume);
+}
+
+int app_audio_get_volume(void)
+{
+    return s_volume;
 }
 
 bool app_audio_mic_available(void)

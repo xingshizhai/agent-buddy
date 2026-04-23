@@ -4,6 +4,7 @@ idf_component_register(
         "app_lcd.c"
         "app_audio.c"
         "app_wifi.c"
+        "app_ai.c"
         "ui/ui_main_screen.c"
         "ui/ui_chat_screen.c"
         "ui/ui_debug_screen.c"
@@ -26,4 +27,7 @@ idf_component_register(
         freertos
         log
         esp_hw_support
+        esp_websocket_client
+        tcp_transport
 )
+

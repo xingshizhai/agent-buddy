@@ -13,7 +13,7 @@
 #define BSP_ES8311_ADDR         0x18
 #define BSP_ES7210_ADDR         0x41
 #define BSP_GT1151_ADDR         0x14  // alt: 0x5D
-#define BSP_TCA9554_ADDR        0x38
+#define BSP_TCA9554_ADDR        0x20
 
 // TCA9554 pin assignments
 #define BSP_PA_CTRL_EXP_PIN     0    // IO expander pin 0 → NS4150 PA enable
