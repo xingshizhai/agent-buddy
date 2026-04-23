@@ -14,6 +14,14 @@ menu "Agent Buddy Configuration"
                 Password for the WiFi network.
     endmenu
 
+    menu "AI Server"
+        config AGENT_BUDDY_SERVER_URL
+            string "WebSocket Server URL"
+            default "ws://192.168.1.100:8765/ws/chat"
+            help
+                WebSocket URL of the Agent Buddy server (e.g. ws://192.168.1.100:8765/ws/chat).
+    endmenu
+
     menu "Bluetooth"
         config AGENT_BUDDY_BT_DEVICE_NAME
             string "Bluetooth Device Name"
