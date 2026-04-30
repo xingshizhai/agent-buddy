@@ -6,4 +6,6 @@ server/.env
 server/venv/
 
 .vscode
+idf-env.ps1
+idf-env.bat
 
