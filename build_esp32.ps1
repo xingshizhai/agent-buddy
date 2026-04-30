@@ -5,7 +5,7 @@
 .DESCRIPTION
     配置查找顺序（命中其一即可）：
       1) 环境变量 ESP_IDF_BUILD_CONFIG = 某个 .ps1 的完整路径
-      2) 与本脚本同目录的 idf-env.local.ps1
+      2) 与本脚本同目录的 idf-env.ps1
       3) %USERPROFILE%\.esp-idf-build.ps1
     模板见 idf-env.example.ps1；须设置 $IDF_PATH，建议与 EIM 终端中的 IDF_TOOLS_PATH、IDF_PYTHON_ENV_PATH 一致。
 
@@ -74,29 +74,28 @@ if (-not $ScriptRoot) {
 }
 
 $configPath = $null
-if ($env:ESP_IDF_BUILD_CONFIG -and (Test-Path -LiteralPath $env:ESP_IDF_BUILD_CONFIG)) {
+
+# If IDF_PATH already set by parent (e.g. build_esp32.bat loaded idf-env.bat), use it
+if ($env:IDF_PATH -and (Test-Path -LiteralPath $env:IDF_PATH)) {
+    $IDF_PATH = $env:IDF_PATH
+    if ($env:IDF_TOOLS_PATH) { $IDF_TOOLS_PATH = $env:IDF_TOOLS_PATH }
+    if ($env:IDF_PYTHON_ENV_PATH) { $IDF_PYTHON_ENV_PATH = $env:IDF_PYTHON_ENV_PATH }
+    Write-Host "使用环境变量 IDF_PATH: $IDF_PATH" -ForegroundColor Cyan
+}
+elseif ($env:ESP_IDF_BUILD_CONFIG -and (Test-Path -LiteralPath $env:ESP_IDF_BUILD_CONFIG)) {
     $configPath = $env:ESP_IDF_BUILD_CONFIG
 }
-elseif (Test-Path -LiteralPath (Join-Path $ScriptRoot "idf-env.local.ps1")) {
-    $configPath = Join-Path $ScriptRoot "idf-env.local.ps1"
+elseif (Test-Path -LiteralPath (Join-Path $ScriptRoot "idf-env.ps1")) {
+    $configPath = Join-Path $ScriptRoot "idf-env.ps1"
 }
 elseif (Test-Path -LiteralPath (Join-Path $env:USERPROFILE ".esp-idf-build.ps1")) {
     $configPath = Join-Path $env:USERPROFILE ".esp-idf-build.ps1"
 }
 
-if (-not $configPath) {
-    Write-Host @"
-未找到配置文件。任选其一：
-  环境变量 ESP_IDF_BUILD_CONFIG = 某个 .ps1 的完整路径
-  本目录 idf-env.local.ps1
-  $($env:USERPROFILE)\.esp-idf-build.ps1
-模板：idf-env.example.ps1
-"@ -ForegroundColor Red
-    exit 1
+if ($configPath) {
+    Write-Host "加载配置: $configPath" -ForegroundColor Cyan
+    . $configPath
 }
-
-Write-Host "加载配置: $configPath" -ForegroundColor Cyan
-. $configPath
 
 if (-not $IDF_PATH) {
     Write-Host "配置中必须设置 `$IDF_PATH。" -ForegroundColor Red

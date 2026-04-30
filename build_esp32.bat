@@ -1,14 +1,31 @@
 @echo off
 rem =============================================================================
-rem build_esp32.bat — 调用同目录 build_esp32.ps1（ESP-IDF 编译 / 激活）
+rem build_esp32.bat - load idf-env.bat, then delegate to build_esp32.ps1
 rem
-rem 用法：
-rem   build_esp32.bat              完整编译（idf.py build）
-rem   build_esp32.bat -ActivateOnly   只激活环境并进入工程目录后退出（见 ps1 内说明）
+rem Usage:
+rem   build_esp32.bat              full build (idf.py build)
+rem   build_esp32.bat -ActivateOnly  activate env only
 rem
-rem 配置在 idf-env.local.ps1 或 %%USERPROFILE%%\.esp-idf-build.ps1，详见 idf-env.example.ps1
-rem 详细说明请打开 build_esp32.ps1 文件头部注释（Get-Help 风格使用说明）。
+rem Config: idf-env.bat in same directory (copy from idf-env.example.bat)
 rem =============================================================================
 setlocal
+
+rem Find config file
+set "CONFIG="
+if defined ESP_IDF_BUILD_CONFIG (
+    if exist "%ESP_IDF_BUILD_CONFIG%" set "CONFIG=%ESP_IDF_BUILD_CONFIG%"
+)
+if not defined CONFIG if exist "%~dp0idf-env.bat" set "CONFIG=%~dp0idf-env.bat"
+if not defined CONFIG if exist "%USERPROFILE%\.esp-idf-build.bat" set "CONFIG=%USERPROFILE%\.esp-idf-build.bat"
+
+if not defined CONFIG (
+    echo ERROR: No config file found. Copy idf-env.example.bat to idf-env.bat.
+    exit /b 1
+)
+
+rem Load config to set IDF_PATH, IDF_TOOLS_PATH, IDF_PYTHON_ENV_PATH
+call "%CONFIG%"
+
+rem Delegate to build_esp32.ps1.
+rem It will use the inherited env vars (IDF_PATH etc.) to find EIM/activate.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0build_esp32.ps1" %*
-exit /b %ERRORLEVEL%

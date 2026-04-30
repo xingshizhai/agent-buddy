@@ -1,5 +1,8 @@
 @echo off
-cd /d D:\Work\esp32\projects\parrot-buddy
-call D:\Work\esp32\projects\parrot-buddy\build_esp32.ps1 -ActivateOnly
-idf.py -p COM3 flash > flash_out.txt 2>&1
+rem Flash firmware to ESP32-S3. Usage: do_flash.bat [COM_PORT]
+rem Default: COM8 (change as needed)
+set "PORT=%~1"
+if not defined PORT set "PORT=COM8"
+cd /d "%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -Command ". '.\build_esp32.ps1' -ActivateOnly; idf.py -p %PORT% flash"
 echo EXIT_CODE: %ERRORLEVEL%
