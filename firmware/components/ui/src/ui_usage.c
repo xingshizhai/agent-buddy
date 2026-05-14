@@ -9,10 +9,13 @@ extern const lv_font_t font_styrene_28;
 extern const lv_font_t font_styrene_20;
 extern const lv_font_t font_mono_18;
 
-#define TOP_H     28
-#define CONTENT_H (BSP_LCD_V_RES - TOP_H)
-#define HALF_W    (BSP_LCD_H_RES / 2)
-#define ARC_DIAM  100
+#define TOP_OFFSET  2                                   // gap above topbar
+#define TOP_H       28                                  // topbar height
+#define CONTENT_TOP (TOP_OFFSET + TOP_H)
+#define CONTENT_H   (BSP_LCD_V_RES - CONTENT_TOP)
+#define HALF_W      (BSP_LCD_H_RES / 2)
+#define ARC_DIAM    100
+#define ARC_Y       (CONTENT_TOP + (CONTENT_H - ARC_DIAM) / 2 - 10)  // shifted up 10px
 
 static lv_obj_t *s_ble_dot;
 static lv_obj_t *s_arc_session, *s_arc_weekly;
@@ -24,14 +27,14 @@ void ui_usage_init(lv_obj_t *parent)
     // Top bar
     lv_obj_t *topbar = lv_obj_create(parent);
     lv_obj_set_size(topbar, BSP_LCD_H_RES, TOP_H);
-    lv_obj_set_pos(topbar, 0, 0);
+    lv_obj_set_pos(topbar, 0, TOP_OFFSET);
     lv_obj_set_style_bg_color(topbar, lv_color_hex(0x1a1a1a), 0);
     lv_obj_set_style_border_width(topbar, 0, 0);
     lv_obj_set_style_pad_all(topbar, 4, 0);
 
     lv_obj_t *title = lv_label_create(topbar);
     lv_label_set_text(title, "AGENT BUDDY");
-    lv_obj_set_style_text_font(title, &font_styrene_28, 0);
+    lv_obj_set_style_text_font(title, &font_styrene_20, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(title, LV_ALIGN_LEFT_MID, 4, 0);
 
@@ -43,7 +46,7 @@ void ui_usage_init(lv_obj_t *parent)
     // Session arc (left half)
     s_arc_session = lv_arc_create(parent);
     lv_obj_set_size(s_arc_session, ARC_DIAM, ARC_DIAM);
-    lv_obj_set_pos(s_arc_session, (HALF_W - ARC_DIAM) / 2, TOP_H + (CONTENT_H - ARC_DIAM) / 2);
+    lv_obj_set_pos(s_arc_session, (HALF_W - ARC_DIAM) / 2, ARC_Y);
     lv_arc_set_range(s_arc_session, 0, 100);
     lv_arc_set_value(s_arc_session, 0);
     lv_obj_remove_style(s_arc_session, NULL, LV_PART_KNOB);
@@ -70,7 +73,7 @@ void ui_usage_init(lv_obj_t *parent)
     // Weekly arc (right half)
     s_arc_weekly = lv_arc_create(parent);
     lv_obj_set_size(s_arc_weekly, ARC_DIAM, ARC_DIAM);
-    lv_obj_set_pos(s_arc_weekly, HALF_W + (HALF_W - ARC_DIAM) / 2, TOP_H + (CONTENT_H - ARC_DIAM) / 2);
+    lv_obj_set_pos(s_arc_weekly, HALF_W + (HALF_W - ARC_DIAM) / 2, ARC_Y);
     lv_arc_set_range(s_arc_weekly, 0, 100);
     lv_arc_set_value(s_arc_weekly, 0);
     lv_obj_remove_style(s_arc_weekly, NULL, LV_PART_KNOB);
