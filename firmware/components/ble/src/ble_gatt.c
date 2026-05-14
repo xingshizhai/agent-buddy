@@ -1,5 +1,4 @@
 #include "ble/ble_gatt.h"
-#include "ble/ble_hid.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -22,7 +21,6 @@
 #include <stdio.h>
 
 void ble_store_config_init(void);
-extern const struct ble_gatt_svc_def ble_hid_svc[];
 
 #define TAG "GATT"
 #define RX_BUF_SIZE  512
@@ -138,7 +136,6 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
         if (event->connect.status == 0) {
             s_conn_handle = event->connect.conn_handle;
             s_state = BLE_GATT_STATE_CONNECTED;
-            ble_hid_set_conn(s_conn_handle);
             ESP_LOGI(TAG, "connected handle=%d", s_conn_handle);
             // No forced pairing — open connection allows daemon to write freely.
             // HID keyboard pairing is handled by the OS if needed.
@@ -152,7 +149,6 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
         ESP_LOGI(TAG, "disconnected reason=%d", event->disconnect.reason);
         s_conn_handle = BLE_HS_CONN_HANDLE_NONE;
         s_state = BLE_GATT_STATE_DISCONNECTED;
-        ble_hid_set_conn(BLE_HS_CONN_HANDLE_NONE);
         start_advertising();
         return 0;
 
@@ -229,14 +225,10 @@ esp_err_t ble_gatt_init(const char *device_name)
     ble_svc_gap_init();
     ble_svc_gatt_init();
 
-    // Must be static: NimBLE keeps a pointer to this table after ble_gatt_init returns.
-    static struct ble_gatt_svc_def combined[3];
-    combined[0] = s_agent_buddy_svc[0];
-    combined[1] = ble_hid_svc[0];
-    combined[2] = (struct ble_gatt_svc_def){ .type = 0 };
-
-    ble_gatts_count_cfg(combined);
-    ble_gatts_add_svcs(combined);
+    int rc = ble_gatts_count_cfg(s_agent_buddy_svc);
+    if (rc != 0) { ESP_LOGE(TAG, "ble_gatts_count_cfg: %d", rc); return ESP_FAIL; }
+    rc = ble_gatts_add_svcs(s_agent_buddy_svc);
+    if (rc != 0) { ESP_LOGE(TAG, "ble_gatts_add_svcs: %d", rc); return ESP_FAIL; }
 
     ble_svc_gap_device_name_set(s_device_name);
     ble_store_config_init();

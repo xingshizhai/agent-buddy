@@ -1,18 +1,18 @@
 #!/bin/bash
-# Claude Usage Tracker Daemon (BLE)
+# Agent Buddy Usage Daemon (BLE)
 # Reads Claude Code OAuth token, polls usage via API, sends to ESP32 over BLE GATT.
-# Auto-connects and reconnects to the Claude Controller BLE device.
+# Auto-connects and reconnects to the Agent Buddy BLE device.
 # Dependencies: curl, awk, bluetoothctl
 
-DEVICE_NAME="Claude Controller"
+DEVICE_NAME="Agent Buddy"
 DEVICE_MAC="${DEVICE_MAC:-}"  # auto-discovered if empty
-SERVICE_UUID="4c41555a-4465-7669-6365-000000000001"
-RX_CHAR_UUID="4c41555a-4465-7669-6365-000000000002"
-REQ_CHAR_UUID="4c41555a-4465-7669-6365-000000000004"
+SERVICE_UUID="41474e54-4255-4459-0000-000000000001"
+RX_CHAR_UUID="41474e54-4255-4459-0000-000000000002"
+REQ_CHAR_UUID="41474e54-4255-4459-0000-000000000004"
 POLL_INTERVAL=60
 TICK=5
-SAVED_MAC_FILE="$HOME/.config/claude-usage-monitor/ble-address"
-REFRESH_FLAG="/tmp/claude-usage-refresh-$$"
+SAVED_MAC_FILE="$HOME/.config/agent-buddy/ble-address"
+REFRESH_FLAG="/tmp/agent-buddy-refresh-$$"
 DBUS_DEST="org.bluez"
 NOTIFY_PID=""
 
@@ -60,7 +60,7 @@ save_mac() {
     echo "$DEVICE_MAC" > "$SAVED_MAC_FILE"
 }
 
-# Scan for Claude Controller
+# Scan for Agent Buddy
 scan_for_device() {
     log "Scanning for '$DEVICE_NAME'..."
     # Start LE scan
@@ -187,8 +187,18 @@ write_gatt() {
     done
     local count=${#data}
 
-    busctl call "$DBUS_DEST" "$char_path" org.bluez.GattCharacteristic1 \
-        WriteValue "aya{sv}" "$count" $bytes 0 2>/dev/null
+    # Retry up to 5 times (1s apart) in case a prior GATT op is still "In Progress"
+    local attempt
+    for attempt in 1 2 3 4 5; do
+        local err
+        err=$(busctl call "$DBUS_DEST" "$char_path" org.bluez.GattCharacteristic1 \
+            WriteValue "aya{sv}" "$count" $bytes 0 2>&1)
+        local rc=$?
+        if [ $rc -eq 0 ]; then return 0; fi
+        log "Write attempt $attempt failed: $err"
+        sleep 1
+    done
+    return 1
 }
 
 poll() {
@@ -282,6 +292,8 @@ while true; do
     BACKOFF=1  # reset backoff on successful connection
 
     start_notify_subscriber
+    # Wait for StartNotify GATT operation to settle before first write
+    sleep 3
 
     # Poll loop: tick every $TICK seconds. Poll Anthropic when the
     # interval has elapsed OR when the ESP requested a refresh.
