@@ -27,16 +27,16 @@ extern const struct ble_gatt_svc_def ble_hid_svc[];
 #define TAG "GATT"
 #define RX_BUF_SIZE  512
 
-// Clawdmeter UUIDs (little-endian, LSB first)
-// Service:  4c41555a-4465-7669-6365-000000000001
+// Agent Buddy UUIDs (little-endian, LSB first)
+// Service:  41474e54-4255-4459-0000-000000000001
 static const ble_uuid128_t s_svc_uuid = { .u.type = BLE_UUID_TYPE_128,
-    .value = {0x01,0x00,0x00,0x00,0x00,0x00,0x65,0x63,0x69,0x76,0x65,0x44,0x5a,0x55,0x41,0x4c}};
+    .value = {0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x59,0x44,0x55,0x42,0x54,0x4e,0x47,0x41}};
 static const ble_uuid128_t s_rx_uuid  = { .u.type = BLE_UUID_TYPE_128,
-    .value = {0x02,0x00,0x00,0x00,0x00,0x00,0x65,0x63,0x69,0x76,0x65,0x44,0x5a,0x55,0x41,0x4c}};
+    .value = {0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x59,0x44,0x55,0x42,0x54,0x4e,0x47,0x41}};
 static const ble_uuid128_t s_tx_uuid  = { .u.type = BLE_UUID_TYPE_128,
-    .value = {0x03,0x00,0x00,0x00,0x00,0x00,0x65,0x63,0x69,0x76,0x65,0x44,0x5a,0x55,0x41,0x4c}};
+    .value = {0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x59,0x44,0x55,0x42,0x54,0x4e,0x47,0x41}};
 static const ble_uuid128_t s_req_uuid = { .u.type = BLE_UUID_TYPE_128,
-    .value = {0x04,0x00,0x00,0x00,0x00,0x00,0x65,0x63,0x69,0x76,0x65,0x44,0x5a,0x55,0x41,0x4c}};
+    .value = {0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x59,0x44,0x55,0x42,0x54,0x4e,0x47,0x41}};
 
 static uint16_t s_conn_handle  = BLE_HS_CONN_HANDLE_NONE;
 static uint16_t s_tx_handle    = 0;
@@ -65,7 +65,7 @@ static int gatt_access_cb(uint16_t conn_handle, uint16_t attr_handle,
 // Forward declaration — defined below start_advertising
 static int gap_event_cb(struct ble_gap_event *event, void *arg);
 
-static const struct ble_gatt_svc_def s_clawdmeter_svc[] = {
+static const struct ble_gatt_svc_def s_agent_buddy_svc[] = {
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &s_svc_uuid.u,
@@ -107,8 +107,8 @@ static void start_advertising(void)
     adv.uuids128 = (ble_uuid128_t *)&s_svc_uuid;
     adv.num_uuids128 = 1;
     adv.uuids128_is_complete = 1;
-    adv.name = (const uint8_t *)"Claude";
-    adv.name_len = 6;
+    adv.name = (const uint8_t *)"Agent";
+    adv.name_len = 5;
     adv.name_is_complete = 0;
     ble_gap_adv_set_fields(&adv);
 
@@ -208,7 +208,7 @@ esp_err_t ble_gatt_init(const char *device_name)
     } else {
         uint8_t mac[6] = {0};
         esp_read_mac(mac, ESP_MAC_BT);
-        snprintf(s_device_name, sizeof(s_device_name), "Claude%02X%02X", mac[4], mac[5]);
+        snprintf(s_device_name, sizeof(s_device_name), "AgentBuddy%02X%02X", mac[4], mac[5]);
     }
 
     uint8_t mac[6] = {0};
@@ -231,7 +231,7 @@ esp_err_t ble_gatt_init(const char *device_name)
 
     // Must be static: NimBLE keeps a pointer to this table after ble_gatt_init returns.
     static struct ble_gatt_svc_def combined[3];
-    combined[0] = s_clawdmeter_svc[0];
+    combined[0] = s_agent_buddy_svc[0];
     combined[1] = ble_hid_svc[0];
     combined[2] = (struct ble_gatt_svc_def){ .type = 0 };
 

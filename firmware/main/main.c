@@ -63,7 +63,7 @@ static void on_main_button(void *arg, void *data)
 // ── app_main ─────────────────────────────────────────────────────────
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Clawdmeter BOX-3 starting...");
+    ESP_LOGI(TAG, "Agent Buddy starting...");
 
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -105,7 +105,7 @@ void app_main(void)
         iot_button_register_cb(btns[BSP_BUTTON_MAIN], BUTTON_SINGLE_CLICK, NULL, on_main_button, NULL);
 
     // BLE: GATT + HID
-    ble_gatt_init("Claude Controller");
+    ble_gatt_init("Agent Buddy");
 
     // UI: LVGL screens + splash timer
     if (lvgl_port_lock(portMAX_DELAY)) {

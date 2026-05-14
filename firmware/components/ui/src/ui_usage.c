@@ -38,7 +38,7 @@ void ui_usage_init(lv_obj_t *parent)
     lv_obj_set_style_pad_all(topbar, 4, 0);
 
     lv_obj_t *title = lv_label_create(topbar);
-    lv_label_set_text(title, "CLAWDMETER");
+    lv_label_set_text(title, "AGENT BUDDY");
     lv_obj_set_style_text_font(title, &font_styrene_28, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(title, LV_ALIGN_LEFT_MID, 4, 0);

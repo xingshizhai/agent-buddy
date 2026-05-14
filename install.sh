@@ -2,11 +2,11 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SERVICE_NAME="claude-usage-daemon"
+SERVICE_NAME="agent-buddy-daemon"
 SERVICE_FILE="$SCRIPT_DIR/daemon/$SERVICE_NAME.service"
 USER_SERVICE_DIR="$HOME/.config/systemd/user"
 
-echo "=== Claude Usage Tracker - Install ==="
+echo "=== Agent Buddy Daemon - Install ==="
 echo ""
 
 # Check dependencies
@@ -32,12 +32,12 @@ echo ""
 echo "=== Done! ==="
 echo ""
 echo "The daemon will now start automatically when you log in"
-echo "and connect to the SC01 Plus over Bluetooth Low Energy."
+echo "and connect to the Agent Buddy device over Bluetooth Low Energy."
 echo ""
 echo "First-time Bluetooth pairing:"
-echo "  1. Power on the SC01 Plus"
+echo "  1. Power on the Agent Buddy device"
 echo "  2. Run: bluetoothctl scan le"
-echo "  3. Find 'Claude Controller' and note the MAC address"
+echo "  3. Find 'Agent Buddy' and note the MAC address"
 echo "  4. Run: bluetoothctl pair <MAC>"
 echo "  5. Run: bluetoothctl trust <MAC>"
 echo "  6. Start the daemon: systemctl --user start $SERVICE_NAME"
