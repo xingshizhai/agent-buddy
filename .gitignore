@@ -6,3 +6,14 @@ firmware/.cache/
 
 # macOS
 .DS_Store
+build
+sdkconfig
+sdkconfig.old
+managed_components
+server/.env
+server/venv/
+
+.vscode
+idf-env.ps1
+idf-env.bat
+
