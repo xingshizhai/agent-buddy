@@ -1,7 +1,7 @@
 ## idf_component.yml
 dependencies:
-  idf: ">=5.2.0"
+  idf: ">=5.3.0"
   espressif/esp-box-3:
-    version: "*"
+    version: "^3"
   espressif/icm42670:
-    version: "^1.0.0"
+    version: "^2.0.0"
