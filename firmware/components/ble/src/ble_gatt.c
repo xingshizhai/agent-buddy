@@ -140,7 +140,8 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
             s_state = BLE_GATT_STATE_CONNECTED;
             ble_hid_set_conn(s_conn_handle);
             ESP_LOGI(TAG, "connected handle=%d", s_conn_handle);
-            ble_gap_security_initiate(s_conn_handle);
+            // No forced pairing — open connection allows daemon to write freely.
+            // HID keyboard pairing is handled by the OS if needed.
             send_notify(s_req_handle, "{\"req\":true}\n");
         } else {
             start_advertising();
@@ -228,7 +229,8 @@ esp_err_t ble_gatt_init(const char *device_name)
     ble_svc_gap_init();
     ble_svc_gatt_init();
 
-    struct ble_gatt_svc_def combined[3];
+    // Must be static: NimBLE keeps a pointer to this table after ble_gatt_init returns.
+    static struct ble_gatt_svc_def combined[3];
     combined[0] = s_clawdmeter_svc[0];
     combined[1] = ble_hid_svc[0];
     combined[2] = (struct ble_gatt_svc_def){ .type = 0 };
