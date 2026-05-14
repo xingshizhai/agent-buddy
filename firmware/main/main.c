@@ -18,6 +18,11 @@
 
 #define TAG "MAIN"
 
+// Switch back to splash after this many ms with no BLE data
+#define DATA_TIMEOUT_MS (3 * 60 * 1000)
+
+static uint32_t s_last_data_ms = 0;
+
 // ── IMU auto-rotation ────────────────────────────────────────────────
 static icm42670_handle_t s_imu_handle = NULL;
 static lv_display_t     *s_lv_disp   = NULL;
@@ -129,6 +134,7 @@ void app_main(void)
 
                 if (protocol_parse(json, &data)) {
                     usage_rate_sample(data.session_pct);
+                    s_last_data_ms = (uint32_t)(esp_timer_get_time() / 1000);
 
                     ui_update(&data);
 
@@ -154,6 +160,17 @@ void app_main(void)
             s_last_ble = cur_ble;
             ui_update_ble_status(cur_ble, ble_gatt_get_name(), ble_gatt_get_mac());
             ESP_LOGI(TAG, "BLE state: %d", cur_ble);
+        }
+
+        // Return to splash screen if no data received for DATA_TIMEOUT_MS
+        if (s_last_data_ms > 0 && ui_get_current_screen() == SCREEN_USAGE) {
+            uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+            if ((now_ms - s_last_data_ms) > DATA_TIMEOUT_MS) {
+                ESP_LOGI(TAG, "No data for %lu s, returning to splash",
+                         (unsigned long)DATA_TIMEOUT_MS / 1000);
+                ui_show_screen(SCREEN_SPLASH);
+                s_last_data_ms = 0;
+            }
         }
 
         imu_rotation_check();
