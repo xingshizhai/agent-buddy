@@ -1,5 +1,5 @@
 [Unit]
-Description=Claude Usage Tracker Daemon (BLE)
+Description=Agent Buddy Usage Daemon (BLE)
 Requires=bluetooth.target
 After=bluetooth.target
 

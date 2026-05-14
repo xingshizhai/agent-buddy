@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Claude Usage Tracker Daemon — macOS version (uses bleak / CoreBluetooth)
-Polls Anthropic API usage, sends JSON to ESP32-S3-BOX-3 via BLE GATT.
+Agent Buddy Usage Daemon — macOS version (uses bleak / CoreBluetooth)
+Polls Anthropic API usage, sends JSON to Agent Buddy ESP32 via BLE GATT.
 """
 
 import asyncio
@@ -22,18 +22,18 @@ except ImportError:
     sys.exit(1)
 
 # ── Configuration ──────────────────────────────────────────────────────────
-DEVICE_NAME    = "Claude Controller"
-SERVICE_UUID   = "4c41555a-4465-7669-6365-000000000001"
-RX_CHAR_UUID   = "4c41555a-4465-7669-6365-000000000002"  # daemon writes here
-TX_CHAR_UUID   = "4c41555a-4465-7669-6365-000000000003"  # ESP notifies ACK
-REQ_CHAR_UUID  = "4c41555a-4465-7669-6365-000000000004"  # ESP notifies refresh
+DEVICE_NAME    = "Agent Buddy"
+SERVICE_UUID   = "41474e54-4255-4459-0000-000000000001"
+RX_CHAR_UUID   = "41474e54-4255-4459-0000-000000000002"  # daemon writes here
+TX_CHAR_UUID   = "41474e54-4255-4459-0000-000000000003"  # ESP notifies ACK
+REQ_CHAR_UUID  = "41474e54-4255-4459-0000-000000000004"  # ESP notifies refresh
 
 POLL_INTERVAL  = 60   # seconds between API polls
 SCAN_TIMEOUT   = 10   # seconds to scan for device
 RECONNECT_WAIT = 5    # seconds before reconnect attempt
 
 CREDENTIALS_FILE = Path.home() / ".claude" / ".credentials.json"
-SAVED_MAC_FILE   = Path.home() / ".config" / "claude-usage-monitor" / "ble-address"
+SAVED_MAC_FILE   = Path.home() / ".config" / "agent-buddy" / "ble-address"
 
 logging.basicConfig(
     format="[%(asctime)s] %(message)s",
@@ -105,7 +105,7 @@ async def find_device():
         saved = SAVED_MAC_FILE.read_text().strip()
         log.info("Trying cached address: %s", saved)
 
-    log.info("Scanning for Clawdmeter device (%ds)…", SCAN_TIMEOUT)
+    log.info("Scanning for Agent Buddy device (%ds)…", SCAN_TIMEOUT)
     devices = await BleakScanner.discover(timeout=SCAN_TIMEOUT, return_adv=True)
 
     # Prefer saved address for fast reconnect
