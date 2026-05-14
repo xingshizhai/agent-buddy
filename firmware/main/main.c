@@ -25,7 +25,7 @@ static lv_display_t     *s_lv_disp   = NULL;
 static void imu_rotation_check(void)
 {
     if (!s_imu_handle) return;
-    static lv_disp_rotation_t s_last_rot = LV_DISP_ROTATION_0;
+    static lv_disp_rotation_t s_last_rot = LV_DISP_ROTATION_180;
     static uint32_t s_last_ms = 0;
 
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
@@ -35,7 +35,7 @@ static void imu_rotation_check(void)
     icm42670_value_t accel = {0};
     if (icm42670_get_acce_value(s_imu_handle, &accel) != ESP_OK) return;
 
-    lv_disp_rotation_t rot = (accel.y > 0.5f) ? LV_DISP_ROTATION_0 : LV_DISP_ROTATION_180;
+    lv_disp_rotation_t rot = (accel.y > 0.5f) ? LV_DISP_ROTATION_180 : LV_DISP_ROTATION_0;
     if (rot == s_last_rot) return;
 
     ESP_LOGI(TAG, "rotation %d→%d (ay=%.2f)", s_last_rot, rot, accel.y);
