@@ -126,23 +126,20 @@ void app_main(void)
             const char *json = ble_gatt_get_data();
             if (json) {
                 usage_data_t data = {0};
-                int grp_before = usage_rate_group();
 
                 if (protocol_parse(json, &data)) {
                     usage_rate_sample(data.session_pct);
-                    int grp_after = usage_rate_group();
 
                     ui_update(&data);
 
-                    if (grp_after != grp_before && splash_is_active()) {
-                        if (lvgl_port_lock(100)) {
-                            splash_pick_for_current_rate();
-                            lvgl_port_unlock();
-                        }
+                    // Switch from splash to usage screen on first data received
+                    if (ui_get_current_screen() == SCREEN_SPLASH) {
+                        ui_show_screen(SCREEN_USAGE);
                     }
+
                     ble_gatt_send_ack();
-                    ESP_LOGI(TAG, "data: s=%.0f%% w=%.0f%% st=%s grp=%d",
-                             data.session_pct, data.weekly_pct, data.status, grp_after);
+                    ESP_LOGI(TAG, "data: s=%.0f%% w=%.0f%% st=%s",
+                             data.session_pct, data.weekly_pct, data.status);
                 } else {
                     ble_gatt_send_nack();
                     ESP_LOGW(TAG, "JSON parse failed");
