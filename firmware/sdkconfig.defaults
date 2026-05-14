@@ -37,3 +37,7 @@ CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
 
 # NVS (BLE bonding storage)
 CONFIG_NVS_ENCRYPTION=n
+
+# Skip legacy/new I2C driver conflict check at boot.
+# audio_codec_ctrl_i2c.c links the old driver but we never call it at runtime.
+CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK=y

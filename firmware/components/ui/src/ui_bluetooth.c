@@ -1,7 +1,7 @@
 #include "ui_bluetooth.h"
 #include "bsp/esp-bsp.h"
 
-extern const lv_font_t font_tiempos_34;
+extern const lv_font_t font_styrene_28;
 extern const lv_font_t font_styrene_20;
 extern const lv_font_t font_mono_18;
 
@@ -13,7 +13,7 @@ void ui_bluetooth_init(lv_obj_t *parent)
 {
     lv_obj_t *title = lv_label_create(parent);
     lv_label_set_text(title, "Bluetooth");
-    lv_obj_set_style_text_font(title, &font_tiempos_34, 0);
+    lv_obj_set_style_text_font(title, &font_styrene_28, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(title, LV_ALIGN_TOP_LEFT, 12, 12);
 

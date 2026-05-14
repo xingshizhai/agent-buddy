@@ -6,7 +6,7 @@
 #define TAG "UI_USAGE"
 
 // Fonts defined in fonts/ component (no lv_font_ prefix in actual files)
-extern const lv_font_t font_tiempos_34;
+extern const lv_font_t font_styrene_28;
 extern const lv_font_t font_styrene_28;
 extern const lv_font_t font_styrene_20;
 extern const lv_font_t font_mono_18;
@@ -39,7 +39,7 @@ void ui_usage_init(lv_obj_t *parent)
 
     lv_obj_t *title = lv_label_create(topbar);
     lv_label_set_text(title, "CLAWDMETER");
-    lv_obj_set_style_text_font(title, &font_tiempos_34, 0);
+    lv_obj_set_style_text_font(title, &font_styrene_28, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(title, LV_ALIGN_LEFT_MID, 4, 0);
 
