@@ -60,20 +60,12 @@ save_mac() {
     echo "$DEVICE_MAC" > "$SAVED_MAC_FILE"
 }
 
-# Scan for Agent Buddy
+# Scan for Agent Buddy using interactive bluetoothctl (more reliable than background mode)
 scan_for_device() {
     log "Scanning for '$DEVICE_NAME'..."
-    # Start LE scan
-    bluetoothctl scan le &>/dev/null &
-    local scan_pid=$!
-    sleep 8
-    kill "$scan_pid" 2>/dev/null
-    wait "$scan_pid" 2>/dev/null
+    ( echo "power on"; sleep 1; echo "scan on"; sleep 10; echo "quit" ) \
+        | bluetoothctl 2>/dev/null | grep -q "$DEVICE_NAME" || true
 
-    # Pick the first matching device. Multiple matches happen when bluez
-    # remembers old hardware (e.g. after swapping ESP boards). Stale entries
-    # are removed on connect failure (see connect_device), so a few retry
-    # cycles will converge on the live device.
     local found
     found=$(bluetoothctl devices 2>/dev/null | grep "$DEVICE_NAME" | head -1 | awk '{print $2}')
     if [ -n "$found" ]; then
