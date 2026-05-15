@@ -4,7 +4,7 @@
 
 static void on_splash_touch(lv_event_t *e)
 {
-    ui_show_screen(SCREEN_USAGE);
+    ui_show_screen(SCREEN_SERVICE);
 }
 
 void ui_splash_init(lv_obj_t *parent)
