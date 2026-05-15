@@ -1,0 +1,36 @@
+menu "Agent Buddy Configuration"
+
+config AGENT_BUDDY_BLE_DEVICE_NAME
+    string "BLE Device Name"
+    default "Agent Buddy"
+    help
+        Name used for BLE advertising and discovery.
+        The PC daemon scans for this name (and by service UUID).
+
+config AGENT_BUDDY_DISPLAY_BRIGHTNESS
+    int "Display Brightness (%)"
+    default 80
+    range 10 100
+    help
+        Backlight brightness when the screen is active (10–100 %).
+
+config AGENT_BUDDY_DATA_TIMEOUT_S
+    int "BLE Data Timeout (seconds)"
+    default 180
+    range 30 3600
+    help
+        Return to the splash screen after this many seconds without
+        receiving BLE data from the daemon.
+
+config AGENT_BUDDY_SCREEN_DIM_TIMEOUT_S
+    int "Screen Dim Timeout (seconds)"
+    default 900
+    range 30 7200
+    help
+        Turn off the display backlight after this many seconds of
+        inactivity (no touch or button press).
+        Set to 0 to disable auto-dimming.
+        Any touch event or button press wakes the screen;
+        the first press only wakes — it does not trigger navigation.
+
+endmenu
