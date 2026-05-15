@@ -3,22 +3,15 @@
 #include <string.h>
 #include <stdbool.h>
 
-bool proto_claude_parse(const char *json, usage_data_t *out)
+bool proto_claude_parse(const cJSON *payload, usage_data_t *out)
 {
-    cJSON *root = cJSON_Parse(json);
-    if (!root) return false;
+    if (!payload || !out) return false;
 
-    cJSON *s  = cJSON_GetObjectItemCaseSensitive(root, "s");
-    cJSON *sr = cJSON_GetObjectItemCaseSensitive(root, "sr");
-    cJSON *w  = cJSON_GetObjectItemCaseSensitive(root, "w");
-    cJSON *wr = cJSON_GetObjectItemCaseSensitive(root, "wr");
-    cJSON *st = cJSON_GetObjectItemCaseSensitive(root, "st");
-    cJSON *ok = cJSON_GetObjectItemCaseSensitive(root, "ok");
-    cJSON *pl = cJSON_GetObjectItemCaseSensitive(root, "platform");
-
-    strlcpy(out->platform,
-            (pl && cJSON_IsString(pl)) ? pl->valuestring : "claude",
-            sizeof(out->platform));
+    cJSON *s  = cJSON_GetObjectItemCaseSensitive(payload, "s");
+    cJSON *sr = cJSON_GetObjectItemCaseSensitive(payload, "sr");
+    cJSON *w  = cJSON_GetObjectItemCaseSensitive(payload, "w");
+    cJSON *wr = cJSON_GetObjectItemCaseSensitive(payload, "wr");
+    cJSON *st = cJSON_GetObjectItemCaseSensitive(payload, "st");
 
     out->session_pct        = (s  && cJSON_IsNumber(s))  ? (float)s->valuedouble  : 0.0f;
     out->session_reset_mins = (sr && cJSON_IsNumber(sr)) ? sr->valueint            : -1;
@@ -29,9 +22,7 @@ bool proto_claude_parse(const char *json, usage_data_t *out)
             (st && cJSON_IsString(st)) ? st->valuestring : "unknown",
             sizeof(out->status));
 
-    out->ok    = cJSON_IsTrue(ok);
-    out->valid = out->ok;
-
-    cJSON_Delete(root);
-    return out->ok;
+    out->ok    = true;
+    out->valid = true;
+    return true;
 }
