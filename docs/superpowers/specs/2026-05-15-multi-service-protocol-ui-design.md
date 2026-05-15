@@ -288,7 +288,7 @@ Service screens are registered dynamically when `main.c` receives the `cap` mess
 │    Session           Weekly          │
 │    3h20m             6d14h           │  reset countdown
 │                                      │
-│  ● allowed           2m ago          │  status + last-updated time
+│  ● allowed                            │  status label
 └──────────────────────────────────────┘
 ```
 
@@ -309,7 +309,6 @@ Color is applied to the arc indicator segment via `lv_obj_set_style_arc_color(..
 | Topbar title | Service name (`CLAUDE`, `CURSOR`, …) | White |
 | BLE dot | `LV_SYMBOL_BLUETOOTH` | Blue=connected, Grey=disconnected |
 | Status label | `"allowed"` / `"limited"` | Green / Red |
-| Updated time | `"Xm ago"` computed from `esp_timer` delta since last successful parse | `#666666` |
 | Reset label | `"3h20m"` / `"43m"` / `"—"` | `#666666` |
 
 ### 6.5 Code Changes
