@@ -1,8 +1,18 @@
 """Agent Buddy daemon — entry point.
 
-Run from repo root:
+Run from daemon/ directory:
+    python main.py
+
+Or from repo root:
     python -m daemon
 """
+import sys
+from pathlib import Path
+
+# Support both `python main.py` (from daemon/) and `python -m daemon` (from repo root)
+if __package__ is None:
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import asyncio
 import logging
 import signal

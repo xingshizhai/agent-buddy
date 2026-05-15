@@ -3,6 +3,7 @@
 #include "bsp/esp-bsp.h"
 #include "esp_log.h"
 #include <stdio.h>
+#include <ctype.h>
 
 #define TAG "UI_USAGE"
 
@@ -35,8 +36,16 @@ void ui_usage_init(lv_obj_t *parent, const char *svc_name, ui_usage_ctx_t *ctx)
     lv_obj_set_style_border_width(topbar, 0, 0);
     lv_obj_set_style_pad_all(topbar, 4, 0);
 
+    // Convert service name to uppercase for display (e.g. "claude" → "CLAUDE")
+    char title_buf[16] = "UNKNOWN";
+    if (svc_name) {
+        int i = 0;
+        for (; svc_name[i] && i < (int)sizeof(title_buf) - 1; i++)
+            title_buf[i] = (char)toupper((unsigned char)svc_name[i]);
+        title_buf[i] = '\0';
+    }
     lv_obj_t *title = lv_label_create(topbar);
-    lv_label_set_text(title, svc_name ? svc_name : "UNKNOWN");
+    lv_label_set_text(title, title_buf);
     lv_obj_set_style_text_font(title, &font_styrene_20, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(title, LV_ALIGN_LEFT_MID, 4, 0);
