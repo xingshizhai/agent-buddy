@@ -17,18 +17,26 @@ import asyncio
 import logging
 
 from daemon import ble, protocol
+from daemon.config import load as load_config
 from daemon.services.claude import ClaudeService
 
 log = logging.getLogger(__name__)
 
+# ── Load configuration ────────────────────────────────────────────────────────
+_cfg = load_config()
+
 # ── Service registry ──────────────────────────────────────────────────────────
 # Add new services here; they start automatically on next connection.
 SERVICES = [
-    ClaudeService(),
+    ClaudeService(
+        poll_interval    = _cfg.claude.poll_interval,
+        credentials_file = _cfg.claude.credentials_file,
+        proxy_url        = _cfg.proxy.url,
+    ),
 ]
 
-RECONNECT_WAIT = 5
-MAX_BACKOFF    = 60
+RECONNECT_WAIT = _cfg.ble.reconnect_wait
+MAX_BACKOFF    = _cfg.ble.max_backoff
 
 
 async def _poll_loop(
@@ -127,7 +135,7 @@ async def main() -> None:
     backoff = 1
     try:
         while True:
-            address = await ble.find_device()
+            address = await ble.find_device(scan_timeout=_cfg.ble.scan_timeout)
             if address is None:
                 log.info("Device not found, retrying in %ds…", backoff)
                 await asyncio.sleep(backoff)

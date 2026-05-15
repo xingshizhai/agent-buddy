@@ -46,7 +46,7 @@ def _clear_cached_addr() -> None:
         pass
 
 
-async def find_device() -> str | None:
+async def find_device(scan_timeout: int = SCAN_TIMEOUT) -> str | None:
     """Return the BLE address of Agent Buddy.
 
     Tries the cached address first (works even when the device is already
@@ -63,8 +63,8 @@ async def find_device() -> str | None:
         log.warning("Cached address %s not reachable, doing full scan…", saved)
         _clear_cached_addr()
 
-    log.info("Scanning for %s (%ds)…", DEVICE_NAME, SCAN_TIMEOUT)
-    devices = await BleakScanner.discover(timeout=SCAN_TIMEOUT, return_adv=True)
+    log.info("Scanning for %s (%ds)…", DEVICE_NAME, scan_timeout)
+    devices = await BleakScanner.discover(timeout=scan_timeout, return_adv=True)
 
     for addr, (dev, adv) in devices.items():
         svc_uuids = [str(u).lower() for u in (adv.service_uuids or [])]

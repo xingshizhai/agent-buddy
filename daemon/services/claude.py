@@ -10,25 +10,30 @@ from .base import ServiceBase
 
 log = logging.getLogger(__name__)
 
-CREDENTIALS_FILE = Path.home() / ".claude" / ".credentials.json"
-
+_DEFAULT_CREDENTIALS = Path.home() / ".claude" / ".credentials.json"
 _API_URL = "https://api.anthropic.com/v1/messages"
 _API_BODY = '{"model":"claude-haiku-4-5-20251001","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'
 
 
 class ClaudeService(ServiceBase):
     service_id = "claude"
-    poll_interval = 60
+
+    def __init__(self, poll_interval: int = 60,
+                 credentials_file: str = "",
+                 proxy_url: str = "") -> None:
+        self.poll_interval    = poll_interval
+        self._credentials     = Path(credentials_file) if credentials_file else _DEFAULT_CREDENTIALS
+        self._proxy_url       = proxy_url
 
     def _read_token(self) -> str:
-        with open(CREDENTIALS_FILE) as f:
+        with open(self._credentials) as f:
             creds = json.load(f)
         token = (creds.get("accessToken")
                  or creds.get("access_token")
                  or (creds.get("claudeAiOauth") or {}).get("accessToken")
                  or "")
         if not token:
-            raise ValueError(f"No accessToken found in {CREDENTIALS_FILE}")
+            raise ValueError(f"No accessToken found in {self._credentials}")
         return token
 
     def _poll_sync(self) -> dict | None:
@@ -50,6 +55,10 @@ class ClaudeService(ServiceBase):
             "-H", "User-Agent: claude-code/2.1.5",
             "-d", _API_BODY,
         ]
+        if self._proxy_url:
+            cmd.extend(["--proxy", self._proxy_url])
+            log.debug("Using proxy: %s", self._proxy_url)
+
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
             raw_headers = result.stdout

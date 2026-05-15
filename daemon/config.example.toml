@@ -1,0 +1,32 @@
+# Agent Buddy Daemon — Configuration
+# Copy to ~/.config/agent-buddy/config.toml and edit as needed.
+# All settings are optional; built-in defaults are shown below.
+
+# ── Proxy ─────────────────────────────────────────────────────────────────────
+[proxy]
+# HTTP/HTTPS proxy for outbound API calls (Claude, future services).
+# Supports standard proxy URL formats; leave commented to use no proxy.
+#
+# url = "http://127.0.0.1:7890"
+# url = "socks5://127.0.0.1:1080"
+# url = "http://user:pass@proxy.corp:3128"
+
+# ── BLE ───────────────────────────────────────────────────────────────────────
+[ble]
+# Seconds to spend on each BLE discovery scan.
+scan_timeout = 10
+
+# Seconds to wait before re-trying after a clean disconnect.
+reconnect_wait = 5
+
+# Maximum retry backoff in seconds (doubles on each miss, capped here).
+max_backoff = 60
+
+# ── Services ──────────────────────────────────────────────────────────────────
+[services.claude]
+# How often (seconds) to poll the Anthropic rate-limit API.
+poll_interval = 60
+
+# Override the path to the Claude credentials file.
+# Leave empty to use the default: ~/.claude/.credentials.json
+credentials_file = ""
