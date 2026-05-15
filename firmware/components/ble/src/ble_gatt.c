@@ -1,4 +1,5 @@
 #include "ble/ble_gatt.h"
+#include "protocol/protocol.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -139,7 +140,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
             ESP_LOGI(TAG, "connected handle=%d", s_conn_handle);
             // No forced pairing — open connection allows daemon to write freely.
             // HID keyboard pairing is handled by the OS if needed.
-            send_notify(s_req_handle, "{\"req\":true}\n");
+            send_notify(s_tx_handle, protocol_cap());
         } else {
             start_advertising();
         }
@@ -248,8 +249,20 @@ const char *ble_gatt_get_data(void)
     return NULL;
 }
 
-void ble_gatt_send_ack(void)  { send_notify(s_tx_handle, "{\"ack\":true}\n");  }
-void ble_gatt_send_nack(void) { send_notify(s_tx_handle, "{\"ack\":false}\n"); }
+void ble_gatt_send_ack(bool ok)
+{
+    send_notify(s_tx_handle, protocol_ack(ok));
+}
+
+void ble_gatt_send_err(int code, const char *msg)
+{
+    send_notify(s_tx_handle, protocol_err(code, msg));
+}
+
+void ble_gatt_send_req(const char *svc)
+{
+    send_notify(s_req_handle, protocol_req(svc));
+}
 
 ble_gatt_state_t ble_gatt_get_state(void) { return s_state; }
 const char *ble_gatt_get_mac(void)         { return s_mac_str; }
