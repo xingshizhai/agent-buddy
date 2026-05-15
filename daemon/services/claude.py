@@ -27,7 +27,10 @@ class ClaudeService(ServiceBase):
     def _read_token(self) -> str:
         with open(CREDENTIALS_FILE) as f:
             creds = json.load(f)
-        token = creds.get("accessToken") or creds.get("access_token") or ""
+        token = (creds.get("accessToken")
+                 or creds.get("access_token")
+                 or (creds.get("claudeAiOauth") or {}).get("accessToken")
+                 or "")
         if not token:
             raise ValueError(f"No accessToken found in {CREDENTIALS_FILE}")
         return token
