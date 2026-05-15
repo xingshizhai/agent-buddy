@@ -13,6 +13,13 @@ managed_components
 server/.env
 server/venv/
 
+# Python daemon
+daemon/venv/
+daemon/nohup.out
+__pycache__/
+**/__pycache__/
+*.pyc
+
 .vscode
 idf-env.ps1
 idf-env.bat
