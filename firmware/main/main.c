@@ -162,6 +162,12 @@ void app_main(void)
             s_last_ble = cur_ble;
             ui_update_ble_status(cur_ble, ble_gatt_get_name(), ble_gatt_get_mac());
             ESP_LOGI(TAG, "BLE state: %d", cur_ble);
+            // Return to splash immediately on disconnect
+            if (cur_ble == BLE_GATT_STATE_DISCONNECTED &&
+                ui_get_current_screen() != SCREEN_SPLASH) {
+                ui_show_screen(SCREEN_SPLASH);
+                s_last_data_ms = 0;
+            }
         }
 
         // Return to splash if no data received for DATA_TIMEOUT_MS
