@@ -1,4 +1,8 @@
 idf_component_register(
-    SRCS "src/cJSON.c" "src/protocol.c" "src/proto_claude.c"
-    INCLUDE_DIRS "include" "src"
+    SRCS
+        "src/protocol.c"
+        "src/proto_claude.c"
+        "src/service_store.c"
+        "src/cJSON.c"
+    INCLUDE_DIRS "include"
 )
