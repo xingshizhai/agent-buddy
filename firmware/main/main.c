@@ -1,3 +1,4 @@
+// firmware/main/main.c
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -21,9 +22,10 @@
 // Switch back to splash after this many ms with no BLE data
 #define DATA_TIMEOUT_MS (3 * 60 * 1000)
 
-static uint32_t s_last_data_ms = 0;
+static uint32_t        s_last_data_ms = 0;
+static service_store_t s_store;
 
-// ── IMU auto-rotation ────────────────────────────────────────────────
+// ── IMU auto-rotation ────────────────────────────────────────────────────────
 static icm42670_handle_t s_imu_handle = NULL;
 static lv_display_t     *s_lv_disp   = NULL;
 
@@ -55,7 +57,7 @@ static void imu_rotation_check(void)
     bsp_display_brightness_set(80);
 }
 
-// ── Button callback ──────────────────────────────────────────────────
+// ── Button callback ──────────────────────────────────────────────────────────
 static void on_main_button(void *arg, void *data)
 {
     if (ui_get_current_screen() == SCREEN_SPLASH) {
@@ -65,7 +67,7 @@ static void on_main_button(void *arg, void *data)
     }
 }
 
-// ── app_main ─────────────────────────────────────────────────────────
+// ── app_main ─────────────────────────────────────────────────────────────────
 void app_main(void)
 {
     ESP_LOGI(TAG, "Agent Buddy starting...");
@@ -76,10 +78,10 @@ void app_main(void)
         nvs_flash_init();
     }
 
-    // BSP: I2C (shared by touch + IMU)
+    store_init(&s_store);
+
     bsp_i2c_init();
 
-    // BSP: Display + LVGL
     bsp_display_cfg_t disp_cfg = {
         .lvgl_port_cfg  = ESP_LVGL_PORT_INIT_CONFIG(),
         .buffer_size    = BSP_LCD_H_RES * 40,
@@ -88,9 +90,7 @@ void app_main(void)
     };
     s_lv_disp = bsp_display_start_with_config(&disp_cfg);
     bsp_display_brightness_set(80);
-    ESP_LOGI(TAG, "Display: %dx%d", BSP_LCD_H_RES, BSP_LCD_V_RES);
 
-    // IMU: ICM-42607-P
     i2c_master_bus_handle_t i2c_bus = bsp_i2c_get_handle();
     if (icm42670_create(i2c_bus, ICM42670_I2C_ADDRESS, &s_imu_handle) == ESP_OK) {
         icm42670_cfg_t imu_cfg = {
@@ -103,18 +103,17 @@ void app_main(void)
         ESP_LOGW(TAG, "IMU init failed — auto-rotation disabled");
     }
 
-    // Buttons
     button_handle_t btns[BSP_BUTTON_NUM] = {0};
     bsp_iot_button_create(btns, NULL, BSP_BUTTON_NUM);
     if (btns[BSP_BUTTON_MAIN])
-        iot_button_register_cb(btns[BSP_BUTTON_MAIN], BUTTON_SINGLE_CLICK, NULL, on_main_button, NULL);
+        iot_button_register_cb(btns[BSP_BUTTON_MAIN], BUTTON_SINGLE_CLICK,
+                               NULL, on_main_button, NULL);
 
-    // BLE: GATT + HID
     ble_gatt_init("Agent Buddy");
 
-    // UI: LVGL screens + splash timer
     if (lvgl_port_lock(portMAX_DELAY)) {
         ui_init();
+        ui_register_service_screen("CLAUDE");
         lv_timer_create(splash_tick, 80, NULL);
         lvgl_port_unlock();
     }
@@ -125,35 +124,38 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Ready. Waiting for BLE data...");
 
-    // ── Main loop ─────────────────────────────────────────────────────
+    // ── Main loop ─────────────────────────────────────────────────────────────
     while (1) {
         if (ble_gatt_has_data()) {
             const char *json = ble_gatt_get_data();
             if (json) {
-                usage_data_t data = {0};
+                proto_envelope_t env  = {0};
+                usage_data_t     data = {0};
 
-                if (protocol_parse(json, &data)) {
+                if (protocol_parse(json, &env, &data)) {
+                    store_set(&s_store, &data);
                     usage_rate_sample(data.session_pct);
                     s_last_data_ms = (uint32_t)(esp_timer_get_time() / 1000);
 
                     ui_update(&data);
 
-                    // Switch from splash to usage screen on first data received
                     if (ui_get_current_screen() == SCREEN_SPLASH) {
-                        ui_show_screen(SCREEN_USAGE);
+                        ui_show_screen(SCREEN_SERVICE);
                     }
 
-                    ble_gatt_send_ack();
-                    ESP_LOGI(TAG, "data: s=%.0f%% w=%.0f%% st=%s",
-                             data.session_pct, data.weekly_pct, data.status);
+                    ble_gatt_send_ack(true);
+                    ESP_LOGI(TAG, "data[%s]: s=%.0f%% w=%.0f%% st=%s",
+                             data.platform, data.session_pct,
+                             data.weekly_pct, data.status);
                 } else {
-                    ble_gatt_send_nack();
-                    ESP_LOGW(TAG, "JSON parse failed");
+                    ble_gatt_send_err(
+                        env.type == MSG_UNKNOWN ? 2 : 1,
+                        env.type == MSG_UNKNOWN ? "unsupported svc" : "parse error");
+                    ESP_LOGW(TAG, "protocol_parse failed (svc=%s)", env.svc);
                 }
             }
         }
 
-        // BLE state change → update BT screen
         static ble_gatt_state_t s_last_ble = BLE_GATT_STATE_INIT;
         ble_gatt_state_t cur_ble = ble_gatt_get_state();
         if (cur_ble != s_last_ble) {
@@ -162,8 +164,8 @@ void app_main(void)
             ESP_LOGI(TAG, "BLE state: %d", cur_ble);
         }
 
-        // Return to splash screen if no data received for DATA_TIMEOUT_MS
-        if (s_last_data_ms > 0 && ui_get_current_screen() == SCREEN_USAGE) {
+        // Return to splash if no data received for DATA_TIMEOUT_MS
+        if (s_last_data_ms > 0 && ui_get_current_screen() != SCREEN_SPLASH) {
             uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
             if ((now_ms - s_last_data_ms) > DATA_TIMEOUT_MS) {
                 ESP_LOGI(TAG, "No data for %lu s, returning to splash",
