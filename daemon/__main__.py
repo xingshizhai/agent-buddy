@@ -1,3 +1,6 @@
 from daemon.main import main
 import asyncio
-asyncio.run(main())
+try:
+    asyncio.run(main())
+except KeyboardInterrupt:
+    pass

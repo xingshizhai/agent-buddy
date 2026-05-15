@@ -15,7 +15,6 @@ if __package__ is None:
 
 import asyncio
 import logging
-import signal
 
 from daemon import ble, protocol
 from daemon.services.claude import ClaudeService
@@ -125,32 +124,33 @@ async def main() -> None:
     log.info("=== Agent Buddy Daemon ===")
     log.info("Services: %s", [s.service_id for s in SERVICES])
 
-    loop = asyncio.get_event_loop()
-    stop = asyncio.Event()
-    loop.add_signal_handler(signal.SIGINT,  stop.set)
-    loop.add_signal_handler(signal.SIGTERM, stop.set)
-
     backoff = 1
-    while not stop.is_set():
-        address = await ble.find_device()
-        if address is None:
-            log.info("Device not found, retrying in %ds…", backoff)
-            await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, MAX_BACKOFF)
-            continue
+    try:
+        while True:
+            address = await ble.find_device()
+            if address is None:
+                log.info("Device not found, retrying in %ds…", backoff)
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, MAX_BACKOFF)
+                continue
 
-        backoff = 1
-        try:
-            await run_session(address)
-        except Exception as e:
-            log.error("Session error: %s", e)
+            backoff = 1
+            try:
+                await run_session(address)
+            except Exception as e:
+                log.error("Session error: %s", e)
 
-        if not stop.is_set():
             log.info("Reconnecting in %ds…", RECONNECT_WAIT)
             await asyncio.sleep(RECONNECT_WAIT)
+
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        pass
 
     log.info("Daemon stopped")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
