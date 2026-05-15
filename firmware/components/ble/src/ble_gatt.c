@@ -1,5 +1,6 @@
 #include "ble/ble_gatt.h"
 #include "protocol/protocol.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -44,9 +45,18 @@ static char     s_device_name[32];
 static char     s_mac_str[18];
 static ble_gatt_state_t s_state = BLE_GATT_STATE_INIT;
 
-static QueueHandle_t s_data_queue = NULL;
-static char          s_rx_buf[RX_BUF_SIZE];
-static char          s_queue_buf[RX_BUF_SIZE];
+static QueueHandle_t   s_data_queue = NULL;
+static char            s_rx_buf[RX_BUF_SIZE];
+static char            s_queue_buf[RX_BUF_SIZE];
+static esp_timer_handle_t s_cap_timer = NULL;
+
+static void send_notify(uint16_t handle, const char *msg);  // forward decl
+
+// Sent 500 ms after connect so the daemon has time to subscribe to notifications
+static void cap_timer_cb(void *arg)
+{
+    send_notify(s_tx_handle, protocol_cap());
+}
 
 static int gatt_access_cb(uint16_t conn_handle, uint16_t attr_handle,
                           struct ble_gatt_access_ctxt *ctxt, void *arg)
@@ -138,9 +148,8 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
             s_conn_handle = event->connect.conn_handle;
             s_state = BLE_GATT_STATE_CONNECTED;
             ESP_LOGI(TAG, "connected handle=%d", s_conn_handle);
-            // No forced pairing — open connection allows daemon to write freely.
-            // HID keyboard pairing is handled by the OS if needed.
-            send_notify(s_tx_handle, protocol_cap());
+            // Delay cap 500 ms so the daemon can subscribe to notifications first
+            if (s_cap_timer) esp_timer_start_once(s_cap_timer, 500 * 1000);
         } else {
             start_advertising();
         }
@@ -148,6 +157,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGI(TAG, "disconnected reason=%d", event->disconnect.reason);
+        if (s_cap_timer) esp_timer_stop(s_cap_timer);
         s_conn_handle = BLE_HS_CONN_HANDLE_NONE;
         s_state = BLE_GATT_STATE_DISCONNECTED;
         start_advertising();
@@ -233,6 +243,13 @@ esp_err_t ble_gatt_init(const char *device_name)
 
     ble_svc_gap_device_name_set(s_device_name);
     ble_store_config_init();
+
+    esp_timer_create_args_t timer_args = {
+        .callback = cap_timer_cb,
+        .name     = "cap_timer",
+    };
+    esp_timer_create(&timer_args, &s_cap_timer);
+
     nimble_port_freertos_init(ble_host_task);
     return ESP_OK;
 }
