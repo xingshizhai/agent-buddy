@@ -35,6 +35,15 @@ async def test_poll_returns_none_on_empty_token(svc, tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_read_token_from_nested_claudeAiOauth(svc, tmp_path, monkeypatch):
+    creds = tmp_path / "creds.json"
+    creds.write_text(json.dumps({"claudeAiOauth": {"accessToken": "nested-token"}}))
+    monkeypatch.setattr("daemon.services.claude.CREDENTIALS_FILE", creds)
+    token = svc._read_token()
+    assert token == "nested-token"
+
+
+@pytest.mark.asyncio
 async def test_poll_builds_payload(svc, tmp_path, monkeypatch):
     creds = tmp_path / "creds.json"
     creds.write_text(json.dumps({"accessToken": "tok-test"}))
