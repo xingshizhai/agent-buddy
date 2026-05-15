@@ -12,7 +12,6 @@ bool proto_claude_parse(const cJSON *payload, usage_data_t *out)
     cJSON *w  = cJSON_GetObjectItemCaseSensitive(payload, "w");
     cJSON *wr = cJSON_GetObjectItemCaseSensitive(payload, "wr");
     cJSON *st = cJSON_GetObjectItemCaseSensitive(payload, "st");
-    cJSON *ok = cJSON_GetObjectItemCaseSensitive(payload, "ok");
 
     out->session_pct        = (s  && cJSON_IsNumber(s))  ? (float)s->valuedouble  : 0.0f;
     out->session_reset_mins = (sr && cJSON_IsNumber(sr)) ? sr->valueint            : -1;
@@ -23,8 +22,8 @@ bool proto_claude_parse(const cJSON *payload, usage_data_t *out)
             (st && cJSON_IsString(st)) ? st->valuestring : "unknown",
             sizeof(out->status));
 
-    out->ok    = cJSON_IsTrue(ok);
-    out->valid = out->ok;
+    out->ok    = true;
+    out->valid = true;
 
-    return out->ok;
+    return true;
 }
