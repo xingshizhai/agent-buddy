@@ -11,6 +11,7 @@ typedef bool (*parser_fn)(const cJSON *payload, usage_data_t *out);
 
 static const struct { const char *svc; parser_fn fn; } s_parsers[] = {
     { "claude", proto_claude_parse },
+    { "kimi",   proto_claude_parse },   // same s/sr/w/wr/st payload format
     // To add a new service: { "cursor", proto_cursor_parse },
     { NULL, NULL }
 };
@@ -68,7 +69,7 @@ static char s_req_buf[80];
 const char *protocol_cap(void)
 {
     return "{\"type\":\"cap\",\"v\":1,"
-           "\"svcs\":[\"claude\"],"
+           "\"svcs\":[\"claude\",\"kimi\"],"
            "\"screens\":[\"usage\",\"ble\"]}\n";
 }
 

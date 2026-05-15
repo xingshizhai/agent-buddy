@@ -30,3 +30,15 @@ poll_interval = 60
 # Override the path to the Claude credentials file.
 # Leave empty to use the default: ~/.claude/.credentials.json
 credentials_file = ""
+
+[services.kimi]
+# Set enabled = true to activate the Kimi Code usage display.
+enabled = false
+
+# How often (seconds) to poll the Kimi Code usage API.
+poll_interval = 300
+
+# kimi-auth JWT token from https://www.kimi.com/code/console (F12 → Application → Cookies).
+# Alternatively, save the token to ~/.config/agent-buddy/kimi-auth.txt
+# Tokens expire after ~30 days; renew via the browser.
+# auth_token = "eyJhbGci..."

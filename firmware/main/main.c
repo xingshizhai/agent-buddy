@@ -161,6 +161,7 @@ void app_main(void)
     if (lvgl_port_lock(portMAX_DELAY)) {
         ui_init();
         ui_register_service_screen("claude");
+        ui_register_service_screen("kimi");
         lv_timer_create(splash_tick, 80, NULL);
         lvgl_port_unlock();
     }

@@ -32,10 +32,18 @@ class ClaudeConfig:
 
 
 @dataclass
+class KimiConfig:
+    poll_interval: int = 300   # seconds between API polls (5 min default)
+    auth_token: str    = ""    # kimi-auth JWT; empty = read from ~/.config/agent-buddy/kimi-auth.txt
+    enabled: bool      = False # must be explicitly enabled
+
+
+@dataclass
 class Config:
     proxy:  ProxyConfig  = field(default_factory=ProxyConfig)
     ble:    BleConfig    = field(default_factory=BleConfig)
     claude: ClaudeConfig = field(default_factory=ClaudeConfig)
+    kimi:   KimiConfig   = field(default_factory=KimiConfig)
 
 
 def load(path: Path | None = None) -> Config:
@@ -65,9 +73,16 @@ def load(path: Path | None = None) -> Config:
         cfg.ble.reconnect_wait = int(ble.get("reconnect_wait", cfg.ble.reconnect_wait))
         cfg.ble.max_backoff   = int(ble.get("max_backoff",   cfg.ble.max_backoff))
 
-    if claude := data.get("services", {}).get("claude", {}):
+    services = data.get("services", {})
+
+    if claude := services.get("claude", {}):
         cfg.claude.poll_interval    = int(claude.get("poll_interval",    cfg.claude.poll_interval))
         cfg.claude.credentials_file = claude.get("credentials_file", "")
+
+    if kimi := services.get("kimi", {}):
+        cfg.kimi.enabled       = bool(kimi.get("enabled", cfg.kimi.enabled))
+        cfg.kimi.poll_interval = int(kimi.get("poll_interval", cfg.kimi.poll_interval))
+        cfg.kimi.auth_token    = kimi.get("auth_token", "")
 
     log.info("Config loaded from %s", cfg_path)
     return cfg

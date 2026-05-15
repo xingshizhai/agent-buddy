@@ -19,6 +19,7 @@ import logging
 from daemon import ble, protocol
 from daemon.config import load as load_config
 from daemon.services.claude import ClaudeService
+from daemon.services.kimi import KimiService
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +27,6 @@ log = logging.getLogger(__name__)
 _cfg = load_config()
 
 # ── Service registry ──────────────────────────────────────────────────────────
-# Add new services here; they start automatically on next connection.
 SERVICES = [
     ClaudeService(
         poll_interval    = _cfg.claude.poll_interval,
@@ -34,6 +34,12 @@ SERVICES = [
         proxy_url        = _cfg.proxy.url,
     ),
 ]
+
+if _cfg.kimi.enabled:
+    SERVICES.append(KimiService(
+        auth_token    = _cfg.kimi.auth_token,
+        poll_interval = _cfg.kimi.poll_interval,
+    ))
 
 RECONNECT_WAIT = _cfg.ble.reconnect_wait
 MAX_BACKOFF    = _cfg.ble.max_backoff
