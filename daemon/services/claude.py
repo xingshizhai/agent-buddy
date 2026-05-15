@@ -1,10 +1,10 @@
 # daemon/services/claude.py
+import asyncio
 import json
 import logging
+import subprocess
 import time
 from pathlib import Path
-
-import aiohttp
 
 from .base import ServiceBase
 
@@ -13,11 +13,7 @@ log = logging.getLogger(__name__)
 CREDENTIALS_FILE = Path.home() / ".claude" / ".credentials.json"
 
 _API_URL = "https://api.anthropic.com/v1/messages"
-_API_BODY = json.dumps({
-    "model": "claude-haiku-4-5-20251001",
-    "max_tokens": 1,
-    "messages": [{"role": "user", "content": "hi"}],
-})
+_API_BODY = '{"model":"claude-haiku-4-5-20251001","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'
 
 
 class ClaudeService(ServiceBase):
@@ -35,7 +31,8 @@ class ClaudeService(ServiceBase):
             raise ValueError(f"No accessToken found in {CREDENTIALS_FILE}")
         return token
 
-    async def poll(self) -> dict | None:
+    def _poll_sync(self) -> dict | None:
+        """Blocking curl call — runs in a thread via asyncio.to_thread."""
         try:
             token = self._read_token()
         except Exception as e:
@@ -43,29 +40,28 @@ class ClaudeService(ServiceBase):
             return None
 
         now = int(time.time())
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "anthropic-version": "2023-06-01",
-            "anthropic-beta": "oauth-2025-04-20",
-            "Content-Type": "application/json",
-            "User-Agent": "claude-code/2.1.5",
-        }
-
+        cmd = [
+            "curl", "-s", "-D", "-", "-o", "/dev/null",
+            _API_URL,
+            "-H", f"Authorization: Bearer {token}",
+            "-H", "anthropic-version: 2023-06-01",
+            "-H", "anthropic-beta: oauth-2025-04-20",
+            "-H", "Content-Type: application/json",
+            "-H", "User-Agent: claude-code/2.1.5",
+            "-d", _API_BODY,
+        ]
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    _API_URL,
-                    headers=headers,
-                    data=_API_BODY,
-                    timeout=aiohttp.ClientTimeout(total=15),
-                ) as resp:
-                    resp_headers = resp.headers
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            raw_headers = result.stdout
         except Exception as e:
             log.error("Anthropic API call failed: %s", e)
             return None
 
         def hdr(name: str) -> str:
-            return resp_headers.get(name, "")
+            for line in raw_headers.splitlines():
+                if line.lower().startswith(name.lower() + ":"):
+                    return line.split(":", 1)[1].strip()
+            return ""
 
         s5h = float(hdr("anthropic-ratelimit-unified-5h-utilization") or 0)
         s5r = hdr("anthropic-ratelimit-unified-5h-reset") or str(now)
@@ -78,4 +74,9 @@ class ClaudeService(ServiceBase):
         wp = round(s7d * 100)
         wr = max(0, round((int(s7r) - now) / 60)) if s7r.isdigit() else 0
 
-        return {"s": sp, "sr": sr, "w": wp, "wr": wr, "st": st}
+        payload = {"s": sp, "sr": sr, "w": wp, "wr": wr, "st": st}
+        log.info("Polled: s=%d%% w=%d%% st=%s", sp, wp, st)
+        return payload
+
+    async def poll(self) -> dict | None:
+        return await asyncio.to_thread(self._poll_sync)
