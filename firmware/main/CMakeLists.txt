@@ -6,6 +6,7 @@ idf_component_register(
         protocol
         splash
         ui
+        settings
         nvs_flash
         espressif__esp-box-3
         espressif__esp_lvgl_port
