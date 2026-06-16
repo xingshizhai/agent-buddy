@@ -1,0 +1,15 @@
+[Unit]
+Description=Agent Buddy BLE Usage Daemon
+Requires=bluetooth.target
+After=bluetooth.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Data/Work/esp32/agent-buddy
+ExecStart=/usr/bin/python3 -m daemon
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
