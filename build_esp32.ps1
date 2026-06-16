@@ -167,6 +167,33 @@ function Import-EimActivation {
     return $false
 }
 
+# 某些终端/工具会注入 MSYS/MINGW 环境变量，idf.py 会因此拒绝运行。
+# 必须在激活 ESP-IDF 之前彻底清理，否则 idf_tools.py 会直接报错退出。
+$msysVars = @(
+    "MSYSTEM", "MINGW_PREFIX", "MINGW_CHOST", "MSYSTEM_CARCH", "MSYSTEM_CHOST",
+    "MSYSTEM_PREFIX", "MINGW_PACKAGE_PREFIX", "MSYS2_PATH_TYPE"
+)
+$cleared = @()
+foreach ($name in $msysVars) {
+    $before = [Environment]::GetEnvironmentVariable($name, "Process")
+    if ([string]::IsNullOrEmpty($before)) { continue }
+    Remove-Item -Path ("Env:" + $name) -ErrorAction SilentlyContinue
+    $after = [Environment]::GetEnvironmentVariable($name, "Process")
+    if ([string]::IsNullOrEmpty($after)) { $cleared += $name }
+}
+# 同时从 PATH 中移除任何包含 msys 或 mingw 的路径（大小写不敏感）
+if ($env:Path) {
+    $originalPaths = $env:Path -split [IO.Path]::PathSeparator
+    $cleanPaths = $originalPaths | Where-Object { $_ -notmatch '(?i)(msys|mingw)' }
+    if ($cleanPaths.Count -lt $originalPaths.Count) {
+        $env:Path = $cleanPaths -join [IO.Path]::PathSeparator
+        $cleared += ("PATH中移除了" + ($originalPaths.Count - $cleanPaths.Count) + "个MSys/Mingw路径")
+    }
+}
+if ($cleared.Count -gt 0) {
+    Write-Host ("已清理 MSys/Mingw 环境: " + ($cleared -join ", ")) -ForegroundColor DarkGray
+}
+
 Write-Host "正在激活 ESP-IDF..." -ForegroundColor Cyan
 $usedEim = Import-EimActivation -IdfPath $IDF_PATH -ToolsPath $env:IDF_TOOLS_PATH
 
@@ -184,21 +211,6 @@ if (-not $usedEim) {
     }
     Write-Host "使用 export.ps1（未匹配到 eim_idf.json 中的本机 IDF_PATH）" -ForegroundColor Yellow
     . $exportPs1
-}
-
-# 某些终端/工具会注入 MSYS/MINGW 环境变量，idf.py 会因此重复打印不支持警告。
-# 这里仅清理当前进程变量，不影响系统全局环境。
-$msysVars = @("MSYSTEM", "MINGW_PREFIX", "MINGW_CHOST")
-$cleared = @()
-foreach ($name in $msysVars) {
-    $before = [Environment]::GetEnvironmentVariable($name, "Process")
-    if ([string]::IsNullOrEmpty($before)) { continue }
-    Remove-Item -Path ("Env:" + $name) -ErrorAction SilentlyContinue
-    $after = [Environment]::GetEnvironmentVariable($name, "Process")
-    if ([string]::IsNullOrEmpty($after)) { $cleared += $name }
-}
-if ($cleared.Count -gt 0) {
-    Write-Host ("已清理可能触发 MSys/Mingw 警告的环境变量: " + ($cleared -join ", ")) -ForegroundColor DarkGray
 }
 
 if (-not (Get-Command idf.py -ErrorAction SilentlyContinue)) {
